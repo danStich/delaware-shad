@@ -72,7 +72,7 @@ ests <- data.frame(linf_mat, k_mat$k, t0_mat$t0)
 names(ests)[3:5] <- c("linf", "k", "t0")
 
 ests <- ests %>% 
-  filter(rps != "unk")
+  filter(rps != 2)
 
 # . Summarize parameter estimates ----
 par_ests <- tidyr::pivot_longer(
@@ -107,7 +107,7 @@ ggplot(par_summary,aes(x=factor(rps), y=fit),
 
 # . Check model fit against observations ----
 
-Age <-  seq(0, max(fish$final_age))
+Age <-  seq(0, max(fish$final_age), 0.1)
 
 vb_pred <- function(age, linf, k, t0) {
   length <- linf * (1 - exp(-k*(age - t0)))
@@ -131,11 +131,12 @@ fish_preds <- preds %>%
             lwr=quantile(pred, 0.025),
             upr=quantile(pred, 0.975))
 
+fish_preds$lwr[fish_preds$lwr <0] <- 0
 
 fish$rps <- as.numeric(as.factor(fish$rps))
 
 fish <- fish %>% 
-  filter(rps != 3)
+  filter(rps != 2)
 
 # Plot predictions
 ggplot(fish_preds, aes(x = Age, y = fit)) +
@@ -147,7 +148,7 @@ ggplot(fish_preds, aes(x = Age, y = fit)) +
   theme(
     axis.title.x = element_text(vjust = -1),
     axis.title.y = element_text(vjust = 3)
-  ) +
-  scale_y_continuous(limits = c(-1, 600)) #+
+  ) # +
+  # scale_y_continuous(limits = c(-1, 600)) #+
   # scale_x_continuous(limits = c(1, 10))
   
