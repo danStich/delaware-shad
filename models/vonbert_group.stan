@@ -10,6 +10,8 @@ data {
   real hp_sigma;
   real p_b;
   real p_b_sd;
+  real nu_shape;
+  real nu_scale;  
 }
 parameters {
   cholesky_factor_corr[3] L_Omega; // Cholesky factor
@@ -17,6 +19,7 @@ parameters {
   vector<lower=0>[3]      tau;     // Scale
   real<lower = 0>         sigma;   // Observation error
   vector[3]               b0;      // Global VBGF params
+  real  nu;                        // DF parameter for likelihood
 }
 transformed parameters {
   matrix[3, ngroups]   Gamma;     // Group-specific correlated offsets
@@ -36,11 +39,18 @@ model {
   y = Linf[group] .* (1 - exp( -K[group] .* (age - t0[group])));
   
   // Likelihood
-  length ~ normal(y, sigma);
+  length ~ student_t(nu, y, sigma);
   
   L_Omega ~ lkj_corr_cholesky(hp_omega);
   to_vector(Z) ~ normal(0,1);
   tau ~ exponential(1/hp_tau);
   sigma ~ exponential(1/hp_sigma);
   b0 ~ normal(p_b, p_b_sd);
+  nu ~ gamma(nu_shape, nu_scale);
+  
+  
+}
+generated quantities{
+ vector[nobs] log_lik;
+ for(i in 1:nobs) log_lik[i] = student_t_lpdf(length[i] | nu, Linf .* (1-exp(-K .* (age[i]-t0))), sigma);
 }

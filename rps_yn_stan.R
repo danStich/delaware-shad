@@ -16,8 +16,15 @@ fish <- read.csv("data/SHADMASTER.csv", stringsAsFactors = FALSE)
 fish <- fish %>% 
   filter(!is.na(final_age) & !is.na(fork) & !is.na(rps) & !is.na(cohort))
 
+plot(fish$final_age, fish$fork)
+
+fish <- fish %>% 
+  filter(!(final_age == 1 & fork > 200) &
+         !(final_age == 5 & fork < 200))
+
+plot(fish$final_age, fish$fork)
+
 # Run model ----
-# Package the data for stan
 # Package the data for stan
 vb_data = list(
   length = fish$fork,
@@ -25,32 +32,35 @@ vb_data = list(
   nobs = nrow(fish),
   group = as.numeric(as.factor(fish$rps)),
   ngroups = length(unique(fish$rps)),
-  hp_tau = 1,
-  hp_sigma = 10,
+  hp_tau = 2,5,
+  hp_sigma = 50,
   hp_omega = 4,
   p_b = 0,
-  p_b_sd = 1
+  p_b_sd = 1,
+  nu_shape = 6,
+  nu_scale = 0.1  
+  
 )
-
 
 
 # Fit the model with stan
 rps_fit <- stan(file = 'models/vonbert_group.stan',
                       data = vb_data,
                       chains = 3,
-                      iter = 200,
-                      warmup = 100,
+                      iter = 5000,
+                      warmup = 4500,
                       control = list(
-                        adapt_delta = 0.80,
-                        max_treedepth = 10
-                      )
+                        adapt_delta = 0.999,
+                        max_treedepth = 20
+                      ),
+                      refresh = 10
 )
 
 # Print model summary
 print(rps_fit, digits=3)
 
 # Save result to a file
-save(rps_fit, file='results/vonbert_rps.rda')
+save(rps_fit, file='results/vonbert_rps_999.rda')
 
 # Results ----
 # . Load result ----
@@ -91,7 +101,7 @@ par_summary <- par_ests %>%
   data.frame()
 
 
-# Make some violin plot
+# Make some violin plots
 ggplot(par_ests, aes(x=factor(rps), y=estimate), 
        color=factor(sex), fill=factor(rps))+
   geom_violin(alpha=.10)+
@@ -117,7 +127,7 @@ out_list <- vector(mode = "list", length = length(Age))
 for(i in 1:length(unique(Age))){
   out_list[[i]] <- ests %>% 
     group_by(iteration, rps) %>% 
-    summarise(pred = vb_pred(Age[i], linf, k, t0))
+    summarise(pred = vb_pred(Age[i], linf, k, t0), .groups = "keep")
   out_list[[i]]$Age = Age[i]
 }
 
@@ -152,3 +162,10 @@ ggplot(fish_preds, aes(x = Age, y = fit)) +
   # scale_y_continuous(limits = c(-1, 600)) #+
   # scale_x_continuous(limits = c(1, 10))
   
+
+# . Calculate differences in params between groups ----
+calcs <- pivot_wider(linf_mat, names_from = rps, values_from = linf)
+diffs <- calcs$`1` - calcs$`3`
+hist(diffs)
+quantile(diffs, c(0.05, 0.95))
+
