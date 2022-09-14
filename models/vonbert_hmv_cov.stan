@@ -20,6 +20,8 @@ data {
   real p_t0;                        // Prior on mean b0_t0
   real p_t0_sd;                     // Prior on sd of b0_t0
   real p_b_t0_sd;                   // Prior on sd b_t0 (1)
+  real nu_shape;
+  real nu_scale;      
 }
 parameters {
   cholesky_factor_corr[3] L_Omega;  // Cholesky factor
@@ -32,7 +34,7 @@ parameters {
   real  ba_k;                       // Slope for X on K
   real  b0_t0;                      // Mean t0 (shared)
   real  ba_t0;                      // Slope for X on t0 
-  
+  real  nu;                          // DF parameter for likelihood  
 }
 transformed parameters {
   matrix[3, ngroup] Gamma;          // Correlated offsets
@@ -61,6 +63,7 @@ model{
   ba_k ~ normal(0, p_b_k_sd);
   ba_linf ~ normal(0, p_b_linf_sd);
   ba_t0 ~ normal(0, p_b_t0_sd);
+  nu ~ gamma(nu_shape, nu_scale);
   
   // Priors on VBGF parameter correlation
   L_Omega ~ lkj_corr_cholesky(p_omega);
@@ -73,12 +76,12 @@ model{
   y = Linf .* (1-exp(-K .* (age-t0)));
 
   // Likelihood
-  length ~ normal(y, sigma);
+  length ~ student_t(nu, y, sigma);
 }
 generated quantities{
  vector[nobs] log_lik;
  
  // Likelihood for each HMC iteration
- for(i in 1:nobs) log_lik[i] = normal_lpdf(length[i] | Linf[i] * (1-exp(-K[i]*(age[i]-t0[i]))), sigma);
+ for(i in 1:nobs) log_lik[i] = student_t_lpdf(length[i] | nu, Linf .* (1-exp(-K .* (age[i]-t0))), sigma);
  
 }

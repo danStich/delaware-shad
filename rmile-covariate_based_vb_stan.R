@@ -32,12 +32,14 @@ fish <- fish %>%
     p_k_sd = 1,  
     p_t0 = 0,
     p_t0_sd = 1,      
-    p_sigma = 10,
-    p_tau = 1,
+    p_sigma = 50,
+    p_tau = 2.5,
     p_omega = 4,
     p_b_linf_sd = 1,
     p_b_k_sd = 1,
-    p_b_t0_sd = 1
+    p_b_t0_sd = 1,
+    nu_shape = 6,
+    nu_scale = 0.1      
   )
 
 
