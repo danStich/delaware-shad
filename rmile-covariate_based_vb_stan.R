@@ -16,6 +16,15 @@ fish <- read.csv("data/SHADMASTER.csv", stringsAsFactors = FALSE)
 fish <- fish %>% 
   filter(!is.na(final_age) & !is.na(fork) & !is.na(r_mile) & !is.na(cohort))
 
+plot(fish$final_age, fish$fork)
+
+fish <- fish %>% 
+  filter(!(final_age == 1 & fork > 200) &
+         !(final_age == 5 & fork < 200))
+
+plot(fish$final_age, fish$fork)
+
+
 # Run model ----
 # Package the data for stan
   vb_data = list(
@@ -23,8 +32,8 @@ fish <- fish %>%
     age = fish$final_age,
     obs = seq(1, nrow(fish), 1),
     nobs = nrow(fish),
-    group = as.numeric(as.factor(fish$sex)),
-    ngroup = length(unique(fish$sex)),
+    group = rep(1, nrow(fish)),
+    ngroup = 1,
     x = as.vector(scale(fish$r_mile)), 
     p_linf = 0,
     p_linf_sd = 1,

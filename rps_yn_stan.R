@@ -32,23 +32,22 @@ vb_data = list(
   nobs = nrow(fish),
   group = as.numeric(as.factor(fish$rps)),
   ngroups = length(unique(fish$rps)),
-  hp_tau = 2,5,
+  hp_tau = 2.5,
   hp_sigma = 50,
   hp_omega = 4,
   p_b = 0,
   p_b_sd = 1,
   nu_shape = 6,
   nu_scale = 0.1  
-  
 )
 
 
 # Fit the model with stan
-rps_fit <- stan(file = 'models/vonbert_group.stan',
+rm_fit <- stan(file = 'models/vonbert_hmv_cov.stan',
                       data = vb_data,
                       chains = 3,
-                      iter = 5000,
-                      warmup = 4500,
+                      iter = 50,
+                      warmup = 45,
                       control = list(
                         adapt_delta = 0.999,
                         max_treedepth = 20
@@ -57,14 +56,14 @@ rps_fit <- stan(file = 'models/vonbert_group.stan',
 )
 
 # Print model summary
-print(rps_fit, digits=3)
+print(rm_fit, digits=3)
 
 # Save result to a file
-save(rps_fit, file='results/vonbert_rps_999.rda')
+save(rm_fit, file='results/vonbert_rm.rda')
 
 # Results ----
 # . Load result ----
-# load("vonbert_covariate.rda")
+load("results/vonbert_rm.rda")
 
 # . Get parameter estimates ----
 pars <- rstan::extract(rps_fit)  
