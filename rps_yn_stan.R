@@ -4,26 +4,19 @@ library(rstan)
 library(tidyverse)
 library(tidyr)
 library(reshape2)
+library(loo)
 
 # . Set options ----
-options(mc.cores = parallel::detectCores())  
+options(mc.cores = parallel::detectCores(4))  
 rstan_options(auto_write = TRUE)
 
 # . Data Read ----
-fish <- read.csv("data/SHADMASTER.csv", stringsAsFactors = FALSE)
+fish <- read.csv("data/SHADMASTER_subsampjuv.csv", stringsAsFactors = FALSE)
 
 # . Data manipulation ----
 fish <- fish %>% 
-  filter(!is.na(final_age) & !is.na(fork) & !is.na(rps) & !is.na(cohort))
-
-plot(fish$final_age, fish$fork)
-
-fish <- fish %>% 
-  filter(!(final_age == 1 & fork > 200) &
-         !(final_age == 5 & fork < 200))
-
-plot(fish$final_age, fish$fork)
-
+  filter(!is.na(final_age) & !is.na(fork) & fork > 100 & !is.na(cohort) 
+         & sex != "unknown" & final_age > 1 & rps != "unknown")
 # Run model ----
 # Package the data for stan
 vb_data = list(
@@ -43,27 +36,30 @@ vb_data = list(
 
 
 # Fit the model with stan
-rm_fit <- stan(file = 'models/vonbert_hmv_cov.stan',
+rps_fit <- stan(file = 'models/vonbert_group.stan',
                       data = vb_data,
                       chains = 3,
-                      iter = 50,
-                      warmup = 45,
+                      iter = 100,
+                      warmup = 90,
                       control = list(
-                        adapt_delta = 0.999,
-                        max_treedepth = 20
+                        adapt_delta = .99,
+                        max_treedepth = 15
                       ),
                       refresh = 10
 )
 
+rps_loo <- loo(rps_fit)
+rps_loo
+
 # Print model summary
-print(rm_fit, digits=3)
+print(rps_fit, digits=3)
 
 # Save result to a file
-save(rm_fit, file='results/vonbert_rm.rda')
+save(rps_fit, file='results/vonbert_rps.rda')
 
 # Results ----
 # . Load result ----
-load("results/vonbert_rm.rda")
+load("results/vonbert_rps.rda")
 
 # . Get parameter estimates ----
 pars <- rstan::extract(rps_fit)  
@@ -81,7 +77,7 @@ ests <- data.frame(linf_mat, k_mat$k, t0_mat$t0)
 names(ests)[3:5] <- c("linf", "k", "t0")
 
 ests <- ests %>% 
-  filter(rps != 2)
+  filter(rps != 3)
 
 # . Summarize parameter estimates ----
 par_ests <- tidyr::pivot_longer(
@@ -145,26 +141,24 @@ fish_preds$lwr[fish_preds$lwr <0] <- 0
 fish$rps <- as.numeric(as.factor(fish$rps))
 
 fish <- fish %>% 
-  filter(rps != 2)
+  filter(rps != 3)
+
+rps_labels <- c(
+  "1" = "Yes", 
+  "2" = "No")
 
 # Plot predictions
+  
 ggplot(fish_preds, aes(x = Age, y = fit)) +
   geom_line(aes(y = fit)) +
-  facet_wrap(~rps) +
+  facet_wrap(~rps, labeller = labeller(rps = rps_labels)) +
   geom_ribbon(aes(xmax=Age, ymin=lwr, ymax=upr), alpha =.1) +
   geom_point(data = fish, aes(x=final_age, y = fork), alpha = 0.05) +
   theme_bw() +
   theme(
     axis.title.x = element_text(vjust = -1),
-    axis.title.y = element_text(vjust = 3)
-  ) # +
-  # scale_y_continuous(limits = c(-1, 600)) #+
-  # scale_x_continuous(limits = c(1, 10))
-  
-
-# . Calculate differences in params between groups ----
-calcs <- pivot_wider(linf_mat, names_from = rps, values_from = linf)
-diffs <- calcs$`1` - calcs$`3`
-hist(diffs)
-quantile(diffs, c(0.05, 0.95))
-
+    axis.title.y = element_text(vjust = 3),
+    strip.background = element_blank()) +
+  scale_y_continuous(limits = c(-1, 600)) +
+  scale_x_continuous(limits = c(1, 10))+
+  ylab("Length (mm)")
