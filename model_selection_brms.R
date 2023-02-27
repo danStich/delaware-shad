@@ -42,3 +42,4 @@ loo_compare(base_loo, rps_loo, rpsm_loo, sex_loo, r_mile_loo, site_loo,
 load("results/bests_fit.rda") 
 bests_loo <- loo(bests_fit)
 loo_compare(sex_loo, bests_loo)
+
