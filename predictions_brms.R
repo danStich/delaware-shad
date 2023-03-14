@@ -67,6 +67,7 @@ summary(predictions_fit)
 
 # Save the result
 save(predictions_fit, file = "results/predictions_fit.rda")
+# load("results/predictions_fit.rda")
 
 # Coefficient estimates for explanatory variables ----
 # Get coefficient estimates
@@ -177,7 +178,7 @@ ggplot(stacked, aes(x = river_mile, y = fit, color = Sex, fill = Sex)) +
 # and gather them into a dataframe with names matching original data
 newd <- data.frame(expand.grid(
   unique(fish$sex),
-  c(mean(fish$r_mile_s), min(fish$r_mile_s), max(fish$r_mile_s)),
+  c(min(fish$r_mile_s), mean(fish$r_mile_s), max(fish$r_mile_s)),
   unique(fish$final_age)
 ))
 names(newd) <- c("sex", "r_mile_s", "final_age")
