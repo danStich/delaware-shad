@@ -53,8 +53,8 @@ delawareshad$residuals <- model_list$sex_int_disposition_int_rmile_mod$residuals
 mean(delawareshad$residuals)
 
 # Check the overall distribution: looks pretty symmetrical
-# ggplot(delawareshad, aes(residuals)) +
-#   geom_histogram()
+ggplot(delawareshad, aes(residuals)) +
+  geom_histogram()
 
 
 #### Statistical significance ####
@@ -64,7 +64,7 @@ Anova(model_list$sex_disposition_int_rmile_mod, type = "III")
 #### Predictions ####
 # Calculate means and 95% confidence intervals for observed data
 observed_means <- delawareshad %>% 
-  group_by(sex, r_mile, live_dead) %>% 
+  group_by(sex, r_mile, r_km, live_dead) %>% 
   summarize(obs_mean = mean(rps),
             obs_lwr = mean(rps) - sd(rps),
             obs_upr = mean(rps) + sd(rps),
@@ -85,22 +85,35 @@ real_predictions <- apply(logit_predictions, 2, inv.logit)
 # Combine the observed means and CIs with the predictions
 rps_preds <- data.frame(observed_means, real_predictions)
 
+# Figure 4 ----
 # Plot the predictions against the observed means and CIs
-ggplot(rps_preds, aes(x = r_mile, y = obs_mean)) +
+rps_plot <- ggplot(rps_preds, aes(x = r_km, y = obs_mean)) +
   geom_point(position = position_dodge(width = 3), size = 3) +
-  # geom_errorbar(aes(x = r_mile, ymin = obs_lwr, ymax = obs_upr), width = 0,
+  # geom_errorbar(aes(x = r_km, ymin = obs_lwr, ymax = obs_upr), width = 0,
   #               position = position_dodge(width = 3), lwd = 1) +
   geom_line(aes(y = fit), position = position_dodge(width = 3)) +
-  geom_ribbon(aes(xmax = r_mile, ymin = lwr, ymax = upr, color = NULL), 
+  geom_ribbon(aes(xmax = r_km, ymin = lwr, ymax = upr, color = NULL), 
               alpha = 0.10, position = position_dodge(width = 3)) +
-  xlab("River mile") +
+  xlab("River kilometer") +
   ylab("Proportion of repeat spawners") +
   facet_grid(live_dead~sex) +
   theme(
     strip.background = element_blank(),
     axis.title.x = element_text(vjust = -1),
-    axis.title.y = element_text(vjust = 3)
+    axis.title.y = element_text(vjust = 3),
+    text = element_text(size = 14, color = "black")
   )
+
+# For viewing in Rstudio
+rps_plot
+
+# Figure for manuscript
+jpeg(filename = "results/Figure4.jpg",
+     res = 300,
+     width = 2400, 
+     height = 1600)
+rps_plot
+dev.off()
 
 #### Additional summary stats ####
 # Need some additional summary stats for live fish since they 

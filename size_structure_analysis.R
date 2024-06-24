@@ -50,15 +50,15 @@ delawareshad$residuals <- model_list$sex_int_disposition_int_rmile_mod$residuals
 mean(delawareshad$residuals)
 
 # Check the overall distribution: looks pretty symmetrical
-# ggplot(delawareshad, aes(residuals)) +
-#   geom_histogram()
+ggplot(delawareshad, aes(residuals)) +
+  geom_histogram()
 
 # Plot the residuals against r_mile by sex and disposition to triple check
 # Also looks good!
-# ggplot(delawareshad, aes(x = r_mile, y = residuals, color = sex, fill = sex)) +
-#   geom_jitter(alpha = 0.5) +
-#   geom_hline(yintercept = 0) +
-#   facet_wrap(~live_dead)
+ggplot(delawareshad, aes(x = r_mile, y = residuals, color = sex, fill = sex)) +
+  geom_jitter(alpha = 0.5) +
+  geom_hline(yintercept = 0) +
+  facet_wrap(~live_dead)
 
 #### Statistical significance ####
 summary(model_list$sex_int_rmile_mod)
@@ -67,7 +67,7 @@ Anova(model_list$sex_int_rmile_mod, type = "III")
 #### Predictions ####
 # Calculate means and 95% confidence intervals for observed data
 observed_means <- delawareshad %>% 
-  group_by(sex, r_mile) %>% 
+  group_by(sex, r_mile, r_km) %>% 
   summarize(obs_mean = mean(fork),
             obs_lwr = quantile(fork, 0.025),
             obs_upr = quantile(fork, 0.975),
@@ -81,19 +81,32 @@ model_predictions <- predict(model_list$sex_int_rmile_mod,
 # Combine the observed means and CIs with the predictions
 length_preds <- data.frame(observed_means, model_predictions)
 
+# Figure 2 ----
 # Plot the predictions against the observed means and CIs
-ggplot(length_preds, aes(x = r_mile, y = obs_mean)) +
+size_pred_plot <- ggplot(length_preds, aes(x = r_km, y = obs_mean)) +
   geom_point(position = position_dodge(width = 3), size = 3) +
-  geom_errorbar(aes(x = r_mile, ymin = obs_lwr, ymax = obs_upr), width = 0,
+  geom_errorbar(aes(x = r_km, ymin = obs_lwr, ymax = obs_upr), width = 0,
                 position = position_dodge(width = 3), lwd = 1)+
   geom_line(aes(y = fit), position = position_dodge(width = 3)) +
-  geom_ribbon(aes(xmax = r_mile, ymin = lwr, ymax = upr, color = NULL), 
+  geom_ribbon(aes(xmax = r_km, ymin = lwr, ymax = upr, color = NULL), 
               alpha = 0.10, position = position_dodge(width = 3)) +
-  xlab("River mile") +
+  xlab("River kilometer") +
   ylab("Fork length (mm)") +
   facet_wrap(~sex) +
   theme(
     strip.background = element_blank(),
     axis.title.x = element_text(vjust = -1),
-    axis.title.y = element_text(vjust = 3)
+    axis.title.y = element_text(vjust = 3),
+    text = element_text(size = 14, color = "black")
   )
+
+# For viewing in Rstudio
+size_pred_plot
+
+# Figure for manuscript
+jpeg(filename = "results/Figure2.jpg",
+     res = 300,
+     width = 2400, 
+     height = 1600)
+size_pred_plot
+dev.off()

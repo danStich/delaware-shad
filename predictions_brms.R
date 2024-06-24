@@ -98,6 +98,7 @@ ggplot(ests, aes(x = Parameter, y = Estimate)) +
 # sex
 river_mile = rep(sort(unique(fish$r_mile)), 2)
 river_miles = rep(sort(unique(fish$r_mile_s)), 2)
+r_km = round(river_mile * 1.609344, 0)
 
 # Repeat combinations of sex for each set of river miles
 sex = c(rep(1, length(unique(fish$r_mile))),
@@ -112,6 +113,7 @@ params <- data.frame(fixef(predictions_fit))
 new_d <- data.frame(
   river_mile,
   river_miles,
+  r_km,
   sex
 )
 
@@ -164,24 +166,55 @@ stacked$Sex = as.character(stacked$sex)
 stacked$Sex[stacked$sex == 0] <- "Female"
 stacked$Sex[stacked$sex == 1] <- "Male"
 
+##### Figure 6 ####
+# Use only river km from the adults collected
+stacked_pars <- stacked[r_km >= 351, ]
+stacked_pars$param_formatted <- "italic(K)"
+stacked_pars$param_formatted[stacked_pars$Parameter == "Linf"] <- ' "L"["\u221E"] '
+stacked_pars$param_formatted[stacked_pars$Parameter == "t0"] <- ' "t"["0"] '
+stacked_pars$param_formatted <- factor(
+  stacked_pars$param_formatted,
+  levels = c("italic(K)", " \"L\"[\"∞\"] ", " \"t\"[\"0\"] ")
+  )
+
 # Graph the predictions for Linf, K, and t0 using as a function of 
-# explanatory variables (river mile and sex)
-ggplot(stacked, aes(x = river_mile, y = fit, color = Sex, fill = Sex)) +
+# explanatory variables (river km and sex)
+pars_plot <- ggplot(stacked_pars, aes(x = r_km, y = fit, color = Sex, fill = Sex)) +
   geom_line() +
-  geom_ribbon(aes(xmax = river_mile, ymin = lwr, ymax = upr, color = NULL),
-              alpha = 0.10) +
-  facet_wrap(~Parameter, scale = "free_y")
+  geom_ribbon(aes(xmax = r_km, ymin = lwr, ymax = upr, color = NULL),
+              alpha = 0.50) +
+  scale_color_manual(values = c("black", "gray40")) +
+  scale_fill_manual(values = c("black", "gray40")) +
+  xlab("River kilometer") +
+  ylab("Parameter estimate") +
+  theme(
+    strip.background = element_blank(),
+    axis.title.x = element_text(vjust = -1),
+    axis.title.y = element_text(vjust = 3),
+    text = element_text(size = 14, color = "black")
+  ) +  
+  facet_wrap(~param_formatted, scale = "free_y", labeller = label_parsed)
+
+# For viewing in Rstudio
+pars_plot
+
+# Figure for manuscript
+jpeg(filename = "results/Figure6.jpg",
+     res = 300,
+     width = 2400, 
+     height = 1600)
+pars_plot
+dev.off()
 
 
 # Model predictions ----
 # Get unique combinations of sex, standardized river mile, and ages,
 # and gather them into a dataframe with names matching original data
 newd <- data.frame(expand.grid(
-  unique(fish$sex),
-  c(min(fish$r_mile_s), mean(fish$r_mile_s), max(fish$r_mile_s)),
-  unique(fish$final_age)
+  sex = unique(fish$sex),
+  r_mile_s = unique(fish$r_mile_s[fish$r_mile %in% c(218, 295, 331)]),
+  final_age = unique(fish$final_age)
 ))
-names(newd) <- c("sex", "r_mile_s", "final_age")
 
 # Make predictions from the fitted model object using newd defined above
 preds <- predict(predictions_fit, newdata = newd)
@@ -190,23 +223,47 @@ head(preds)
 # Combine the predictions with the newd dataframe
 preds <- cbind(newd, preds)
 
-# Add a column for un-standardized river mile that we can use for plotting
-preds$r_mile <- sort(rep(  
-  c(round(mean(fish$r_mile), 0), min(fish$r_mile), max(fish$r_mile)), 2))
+# Add unstandardized river miles
+preds$r_mile <- preds$r_mile_s * sd(fish$r_mile) + mean(fish$r_mile)
 
+# Convert it to kilometers
+preds$r_km <- round(preds$r_mile * 1.609344, 0)
+
+#### Figure 7 ####
 # Format columns for plotting
 preds$r_mile_s <- as.factor(preds$r_mile_s)
 preds$r_mile <- as.factor(preds$r_mile)
+preds$r_km <- as.factor(preds$r_km)
 preds$sex <- str_to_sentence(preds$sex)
 
 # Make a graph of the predictions
-ggplot(preds, aes(x = final_age, y = Estimate, color = r_mile, fill = r_mile)) +
-  geom_line(data = preds, aes(x = final_age, y = Estimate)) +
+curve_plot <- ggplot(preds, aes(x = final_age, y = Estimate, 
+                                color = r_km, fill = r_km)) +
+  scale_color_manual(values = c("black", "gray30", "gray50")) +
+  scale_fill_manual(values = c("black", "gray30", "gray50")) +
+  geom_line(data = preds, aes(x = final_age, y = Estimate,
+                              linetype = r_km)) +
   geom_ribbon(aes(xmax = final_age, ymin = Q2.5, ymax = Q97.5, color = NULL), 
-              alpha = 0.1) +
-  labs(color = "River mile", fill = "River mile") +
+              alpha = 0.2) +
+  labs(color = "River kilometer", fill = "River kilometer",
+       linetype = "River kilometer") +
   xlab("Age (years)") +
   ylab("Fork length (mm)") +
-  # geom_point(data = fish, aes(x = final_age, y= fork), color = NULL) +
+  theme(
+    strip.background = element_blank(),
+    axis.title.x = element_text(vjust = -1),
+    axis.title.y = element_text(vjust = 3),
+    text = element_text(size = 14, color = "black")
+  ) +  
   facet_wrap(~sex)
 
+# For viewing in Rstudio
+curve_plot
+
+# Figure for manuscript
+jpeg(filename = "results/Figure7.jpg",
+     res = 300,
+     width = 2400, 
+     height = 1600)
+curve_plot
+dev.off()
